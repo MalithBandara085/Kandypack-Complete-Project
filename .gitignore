@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+*.dump
+kandypack_updated.sql
+backup-before-update/
+**/node_modules/
+**/.next/
+**/target/
+**/.idea/
+*.zip

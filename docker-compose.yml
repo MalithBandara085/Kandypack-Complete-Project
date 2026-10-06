@@ -1,0 +1,59 @@
+services:
+  postgres-db:
+    image: postgres:18-alpine
+    container_name: kandypack_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kandypack
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - type: bind
+        source: ./kandypack_updated.sql
+        target: /docker-entrypoint-initdb.d/01-init.sql
+        read_only: true
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d kandypack"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [kandypack_network]
+
+  backend:
+    build:
+      context: ./kandypackbackend/kandypackbackend
+      dockerfile: Dockerfile
+    container_name: kandypack_backend
+    restart: unless-stopped
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres-db
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+    ports:
+      - "8081:8081"
+    networks: [kandypack_network]
+
+  frontend:
+    build:
+      context: ./kandypack-frontend
+      dockerfile: Dockerfile
+    container_name: kandypack_frontend
+    restart: unless-stopped
+    depends_on: [backend]
+    ports:
+      - "3000:3000"
+    networks: [kandypack_network]
+
+volumes:
+  pgdata:
+networks:
+  kandypack_network:
+    driver: bridge
